@@ -10,6 +10,10 @@ import { Button } from "@/components/ui/button";
 import { getRoutingStatus, listDestinations, listRules } from "@/lib/cloudflare";
 import { SESSION_COOKIE, verifySession } from "@/lib/auth";
 
+// Keep the route blocking so the defense-in-depth session check completes
+// before any account data is fetched or rendered.
+export const instant = false;
+
 export default async function Home() {
   if (!verifySession((await cookies()).get(SESSION_COOKIE)?.value)) redirect("/login");
   const [rules, destinations, routing] = await Promise.all([listRules(), listDestinations(), getRoutingStatus()]);

@@ -44,19 +44,32 @@ function required(name: string): string {
 }
 
 function sanitize(message: string): string {
-  const token = process.env.CLOUDFLARE_API_TOKEN;
-  return token ? message.replaceAll(token, "[redacted]") : message;
+  return [process.env.CLOUDFLARE_API_TOKEN, process.env.CLOUDFLARE_ZONE_API_TOKEN]
+    .filter((token): token is string => Boolean(token))
+    .sort((left, right) => right.length - left.length)
+    .reduce((sanitized, token) => sanitized.replaceAll(token, "[redacted]"), message);
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<CloudflareEnvelope<T>> {
+function tokenFor(scope: "account" | "zone"): string {
+  if (scope === "zone" && process.env.CLOUDFLARE_ZONE_API_TOKEN) {
+    return process.env.CLOUDFLARE_ZONE_API_TOKEN;
+  }
+  return required("CLOUDFLARE_API_TOKEN");
+}
+
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  scope: "account" | "zone" = "account",
+): Promise<CloudflareEnvelope<T>> {
+  const headers = new Headers(init?.headers);
+  headers.set("Authorization", `Bearer ${tokenFor(scope)}`);
+  headers.set("Content-Type", "application/json");
+
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
     cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${required("CLOUDFLARE_API_TOKEN")}`,
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
+    headers,
   });
 
   let payload: CloudflareEnvelope<T>;
@@ -82,9 +95,9 @@ export async function listRules(): Promise<EmailRule[]> {
   const rules: EmailRule[] = [];
   let page = 1;
   do {
-    const payload = await request<EmailRule[]>(`/zones/${zone}/email/routing/rules?page=${page}&per_page=50`);
+    const payload = await request<EmailRule[]>(`/zones/${zone}/email/routing/rules?page=${page}&per_page=50`, undefined, "zone");
     rules.push(...payload.result);
-    if (page >= (payload.result_info?.total_pages ?? 1)) break;
+    if (payload.result.length === 0 || page >= (payload.result_info?.total_pages ?? 1)) break;
     page += 1;
   } while (true);
   return aliasesOnly(rules);
@@ -105,7 +118,7 @@ export async function createRule(input: {
       matchers: [{ type: "literal", field: "to", value: `${input.localPart}@${domain}` }],
       actions: [{ type: "forward", value: [input.destination] }],
     }),
-  });
+  }, "zone");
   return payload.result;
 }
 
@@ -122,7 +135,7 @@ export async function setRuleEnabled(tag: string, enabled: boolean): Promise<Ema
       actions: rule.actions,
       ...(rule.priority === undefined ? {} : { priority: rule.priority }),
     }),
-  });
+  }, "zone");
   return payload.result;
 }
 
@@ -130,7 +143,7 @@ export async function deleteRule(tag: string): Promise<void> {
   const zone = required("CLOUDFLARE_ZONE_ID");
   const exists = (await listRules()).some((rule) => rule.tag === tag);
   if (!exists) throw new CloudflareError("Alias rule not found.", 404);
-  await request<unknown>(`/zones/${zone}/email/routing/rules/${encodeURIComponent(tag)}`, { method: "DELETE" });
+  await request<unknown>(`/zones/${zone}/email/routing/rules/${encodeURIComponent(tag)}`, { method: "DELETE" }, "zone");
 }
 
 export async function listDestinations(): Promise<Destination[]> {
@@ -140,7 +153,7 @@ export async function listDestinations(): Promise<Destination[]> {
   do {
     const payload = await request<Destination[]>(`/accounts/${account}/email/routing/addresses?page=${page}&per_page=50`);
     destinations.push(...payload.result);
-    if (page >= (payload.result_info?.total_pages ?? 1)) break;
+    if (payload.result.length === 0 || page >= (payload.result_info?.total_pages ?? 1)) break;
     page += 1;
   } while (true);
   return destinations.filter((destination) => destination.status === "verified");
@@ -148,5 +161,5 @@ export async function listDestinations(): Promise<Destination[]> {
 
 export async function getRoutingStatus(): Promise<RoutingStatus> {
   const zone = required("CLOUDFLARE_ZONE_ID");
-  return (await request<RoutingStatus>(`/zones/${zone}/email/routing`)).result;
+  return (await request<RoutingStatus>(`/zones/${zone}/email/routing`, undefined, "zone")).result;
 }

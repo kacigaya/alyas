@@ -43,10 +43,10 @@ Keep the deployed application private. The included password gate is defense in 
 
 - Bun 1.3.14
 - A domain with Cloudflare Email Routing enabled
-- A Cloudflare API token with these permissions:
+- A Cloudflare API token with `Account > Email Routing Addresses > Read`
+- A Cloudflare zone token with these permissions:
   - `Zone > Email Routing Rules > Edit`
-  - `Zone > Zone > Read`
-  - `Account > Email Routing Addresses > Read`
+  - `Zone > Zone Settings > Read`
 - A private network boundary such as WireGuard, Tailscale, Cloudflare Access, or an equivalent control
 
 ## Setup
@@ -72,7 +72,8 @@ Development uses Next.js's default port. Production binds to `127.0.0.1:3040`.
 
 | Variable | Purpose |
 | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Scoped token used for Email Routing reads and rule changes |
+| `CLOUDFLARE_API_TOKEN` | Token used to list verified destination addresses |
+| `CLOUDFLARE_ZONE_API_TOKEN` | Optional token for zone routing calls; falls back to `CLOUDFLARE_API_TOKEN` |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account containing verified destinations |
 | `CLOUDFLARE_ZONE_ID` | Zone whose Email Routing rules Alyas manages |
 | `ALYAS_DOMAIN` | Domain appended to local-parts |

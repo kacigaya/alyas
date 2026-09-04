@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
 mock.module("server-only", () => ({}));
 
@@ -10,15 +10,19 @@ function asFetch(handler: (input: RequestInfo | URL, init?: RequestInit) => Prom
 }
 
 beforeAll(async () => {
-  process.env.CLOUDFLARE_API_TOKEN = "test-token";
   process.env.CLOUDFLARE_ACCOUNT_ID = "account";
   process.env.CLOUDFLARE_ZONE_ID = "zone";
   process.env.ALYAS_DOMAIN = "example.com";
   cloudflare = await import("@/lib/cloudflare");
 });
 
+beforeEach(() => {
+  process.env.CLOUDFLARE_API_TOKEN = "test-token";
+});
+
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  delete process.env.CLOUDFLARE_ZONE_API_TOKEN;
   mock.restore();
 });
 
@@ -89,6 +93,18 @@ describe("Cloudflare client", () => {
     await expect(cloudflare.listDestinations()).rejects.toThrow("bad [redacted]");
   });
 
+  test("fully redacts overlapping token values", async () => {
+    process.env.CLOUDFLARE_API_TOKEN = "shared";
+    process.env.CLOUDFLARE_ZONE_API_TOKEN = "shared-zone-secret";
+    globalThis.fetch = asFetch(async () => Response.json({
+      success: false,
+      result: null,
+      errors: [{ message: "bad shared-zone-secret" }],
+    }, { status: 403 }));
+
+    await expect(cloudflare.listRules()).rejects.toThrow("bad [redacted]");
+  });
+
   test("keeps only verified destinations", async () => {
     globalThis.fetch = asFetch(async () => Response.json({ success: true, result: [
       { id: "1", email: "ok@example.com", verified: "now", status: "verified" },
@@ -97,5 +113,37 @@ describe("Cloudflare client", () => {
     expect(await cloudflare.listDestinations()).toEqual([
       { id: "1", email: "ok@example.com", verified: "now", status: "verified" },
     ]);
+  });
+
+  test("stops destination pagination on an empty page", async () => {
+    const fetchMock = mock(async () => Response.json({
+      success: true,
+      result: [],
+      result_info: { page: 1, total_pages: 100 },
+    }));
+    globalThis.fetch = asFetch(fetchMock);
+
+    expect(await cloudflare.listDestinations()).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("uses a separate zone token when configured", async () => {
+    process.env.CLOUDFLARE_ZONE_API_TOKEN = "zone-token";
+    const calls: Array<{ url: string; authorization: string | null }> = [];
+    globalThis.fetch = asFetch(async (url, init) => {
+      calls.push({
+        url: String(url),
+        authorization: new Headers(init?.headers).get("Authorization"),
+      });
+      return Response.json({ success: true, result: [], result_info: { total_pages: 1 } });
+    });
+
+    await cloudflare.listRules();
+    await cloudflare.listDestinations();
+
+    expect(calls[0]).toMatchObject({ authorization: "Bearer zone-token" });
+    expect(calls[0].url).toContain("/zones/");
+    expect(calls[1]).toMatchObject({ authorization: "Bearer test-token" });
+    expect(calls[1].url).toContain("/accounts/");
   });
 });

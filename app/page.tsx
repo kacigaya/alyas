@@ -1,4 +1,5 @@
-import { AtSignIcon, LogOutIcon } from "lucide-react";
+import { LogOutIcon } from "lucide-react";
+import Image from "next/image";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { logout } from "@/app/actions";
@@ -17,18 +18,24 @@ export default async function Home() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-12">
       <header className="flex items-center gap-3">
-        <div aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-lg border bg-card"><AtSignIcon /></div>
+        {/* The wordmark below names the app, so the logo is decorative. */}
+        <Image alt="" className="size-9 shrink-0 rounded-lg" height={36} priority src="/logo.svg" width={36} />
         <div className="min-w-0 flex-1">
           <h1 className="text-balance font-heading font-semibold text-xl">Alyas</h1>
           <p className="truncate font-mono text-muted-foreground text-xs">{domain}</p>
         </div>
-        <span className={`rounded-full border px-2 py-1 font-medium text-xs ${routing.enabled && routing.status === "ready" ? "border-success/30 bg-success/10 text-success-foreground" : "border-warning/30 bg-warning/10 text-warning-foreground"}`}>
-          {routing.enabled ? routing.status : "disabled"}
-        </span>
-        <ThemeToggle />
-        <form action={logout}>
-          <Button aria-label="Sign out" size="icon" type="submit" variant="ghost"><LogOutIcon aria-hidden="true" /></Button>
-        </form>
+        {/* Routing state is only worth surfacing when it would stop mail. */}
+        {!(routing.enabled && routing.status === "ready") && (
+          <span className="rounded-full border border-warning/30 bg-warning/10 px-2 py-1 font-medium text-warning-foreground text-xs">
+            {routing.enabled ? routing.status : "routing disabled"}
+          </span>
+        )}
+        <div className="flex shrink-0 items-center gap-0.5">
+          <ThemeToggle />
+          <form action={logout}>
+            <Button aria-label="Sign out" size="icon" type="submit" variant="ghost"><LogOutIcon aria-hidden="true" /></Button>
+          </form>
+        </div>
       </header>
       <AliasForm destinations={destinations.map((item) => item.email)} domain={domain} />
       <AliasList rules={rules} />

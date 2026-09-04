@@ -92,19 +92,21 @@ export function AliasList({ rules }: { rules: EmailRule[] }) {
             return (
               <li key={rule.tag}>
                 <Card className="p-4">
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-center gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-mono font-medium text-sm" title={email}>{email}</p>
                       <p className="truncate text-muted-foreground text-xs" title={destination(rule)}>{rule.name || "Unlabeled"} · {destination(rule)}</p>
                     </div>
-                    <Switch aria-label={`${rule.enabled ? "Disable" : "Enable"} ${email}`} checked={rule.enabled} onCheckedChange={(checked) => toggle(rule, checked)} />
-                    <Button aria-label={`Copy ${email}`} onClick={() => copy(email)} size="icon-sm" type="button" variant="ghost"><CopyIcon aria-hidden="true" /></Button>
-                    <Menu>
-                      <MenuTrigger aria-label={`More actions for ${email}`} render={<Button size="icon-sm" type="button" variant="ghost" />}><MoreHorizontalIcon aria-hidden="true" /></MenuTrigger>
-                      <MenuPopup align="end">
-                        <MenuItem closeOnClick onClick={() => setDeleteTarget(rule)} variant="destructive"><Trash2Icon aria-hidden="true" />Delete</MenuItem>
-                      </MenuPopup>
-                    </Menu>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Switch aria-label={`${rule.enabled ? "Disable" : "Enable"} ${email}`} checked={rule.enabled} onCheckedChange={(checked) => toggle(rule, checked)} />
+                      <Button aria-label={`Copy ${email}`} onClick={() => copy(email)} size="icon-sm" type="button" variant="ghost"><CopyIcon aria-hidden="true" /></Button>
+                      <Menu>
+                        <MenuTrigger aria-label={`More actions for ${email}`} render={<Button size="icon-sm" type="button" variant="ghost" />}><MoreHorizontalIcon aria-hidden="true" /></MenuTrigger>
+                        <MenuPopup align="end">
+                          <MenuItem closeOnClick onClick={() => setDeleteTarget(rule)} variant="destructive"><Trash2Icon aria-hidden="true" />Delete</MenuItem>
+                        </MenuPopup>
+                      </Menu>
+                    </div>
                   </div>
                 </Card>
               </li>

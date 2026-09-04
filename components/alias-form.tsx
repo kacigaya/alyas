@@ -4,12 +4,13 @@ import { RefreshCwIcon } from "lucide-react";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { createAlias, type ActionState } from "@/app/actions";
 import { generate, type GeneratorMode } from "@/lib/alias";
+import { cn } from "@/lib/cn";
 import { segmentedControlItemVariants, segmentedControlRootClassName } from "@/lib/segmented-control";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardPanel, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Radio, RadioGroup } from "@/components/ui/radio-group";
+import { RadioGroupPrimitive, RadioPrimitive } from "@/components/ui/radio-group";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toastManager } from "@/components/ui/toast";
 
@@ -53,25 +54,31 @@ export function AliasForm({ destinations, domain }: { destinations: string[]; do
       </CardHeader>
       <CardPanel>
         <form action={action} className="flex flex-col gap-5" ref={formRef}>
-          <fieldset className="flex flex-col gap-2">
-            <legend className="font-medium text-sm">Address type</legend>
-            <RadioGroup
-              aria-label="Address type"
+          <div className="flex flex-col gap-2">
+            {/* The radio group is the labelled group, so the caption is a plain
+                span: a fieldset here would announce a second nested group. */}
+            <span className="font-medium text-sm" id="mode-label">Address type</span>
+            {/* Base UI radio primitives, not the dotted Radio wrapper: a
+                segmented control renders its own label and no radio indicator. */}
+            <RadioGroupPrimitive
+              aria-labelledby="mode-label"
               className={segmentedControlRootClassName}
               onValueChange={(value) => selectMode(value as GeneratorMode)}
               value={mode}
             >
               {modes.map((item) => (
-                <Radio
-                  className={`${segmentedControlItemVariants({ state: "checked" })} size-auto [&>[data-slot=radio-indicator]]:hidden`}
+                <RadioPrimitive.Root
+                  // The recipe rests at text-muted-foreground/72, which is 3.8:1
+                  // on this surface. Full opacity clears WCAG AA for 14px text.
+                  className={cn(segmentedControlItemVariants({ state: "checked" }), "text-muted-foreground")}
                   key={item.value}
                   value={item.value}
                 >
                   {item.label}
-                </Radio>
+                </RadioPrimitive.Root>
               ))}
-            </RadioGroup>
-          </fieldset>
+            </RadioGroupPrimitive>
+          </div>
 
           <Field invalid={state.field === "localPart"}>
             <FieldLabel htmlFor="localPart">Local-part</FieldLabel>
@@ -120,7 +127,7 @@ export function AliasForm({ destinations, domain }: { destinations: string[]; do
             {state.field === "label" && <FieldError id="label-error">{state.message}</FieldError>}
           </Field>
 
-          {!state.ok && state.message && !state.field && <p aria-live="polite" className="text-destructive-foreground text-sm">{state.message}</p>}
+          {!state.ok && state.message && !state.field && <p className="text-destructive-foreground text-sm">{state.message}</p>}
           <Button disabled={destinations.length === 0} loading={pending} type="submit">Create alias</Button>
           {destinations.length === 0 && <p className="text-pretty text-muted-foreground text-xs">No verified Cloudflare destinations are available.</p>}
           <p aria-live="polite" className="sr-only">{state.message}</p>

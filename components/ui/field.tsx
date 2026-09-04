@@ -59,14 +59,19 @@ export function FieldDescription({
   );
 }
 
+// Base UI only renders an error from native validity or Form-level `errors`.
+// These messages come back from server actions instead, so force the render and
+// let callers decide when to mount the error.
 export function FieldError({
   className,
+  match = true,
   ...props
 }: FieldPrimitive.Error.Props): React.ReactElement {
   return (
     <FieldPrimitive.Error
       className={cn("text-destructive-foreground text-xs", className)}
       data-slot="field-error"
+      match={match}
       {...props}
     />
   );

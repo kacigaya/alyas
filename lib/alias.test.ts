@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { generate, validateLocalPart } from "@/lib/alias";
+import { ADJECTIVES, NOUNS } from "@/lib/words";
 
 describe("generate", () => {
   test("creates a word pair with a four-character hex suffix", () => {
@@ -12,6 +13,14 @@ describe("generate", () => {
 
   test("leaves custom mode empty", () => {
     expect(generate("custom")).toBe("");
+  });
+
+  test("stays inside both word lists", () => {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      const [adjective, noun] = generate("words").split("-");
+      expect(ADJECTIVES.some((word) => word === adjective)).toBe(true);
+      expect(NOUNS.some((word) => word === noun)).toBe(true);
+    }
   });
 });
 

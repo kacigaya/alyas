@@ -1,4 +1,3 @@
-import { randomBytes, randomInt } from "node:crypto";
 import { ADJECTIVES, NOUNS } from "@/lib/words";
 
 export type GeneratorMode = "words" | "hex" | "custom";
@@ -7,10 +6,29 @@ export type ValidationResult =
   | { valid: true; value: string }
   | { valid: false; error: string };
 
+// This module is imported by a client component, so it uses Web Crypto rather
+// than node:crypto: the browser bundle has no randomInt, and calling it threw
+// during hydration.
+function hex(byteLength: number): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(byteLength));
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+// Rejection sampling: a plain modulo would favour the first
+// (2 ** 32 % length) entries of the list.
+function randomIndex(length: number): number {
+  const limit = Math.floor(0x1_0000_0000 / length) * length;
+  const buffer = new Uint32Array(1);
+  do {
+    crypto.getRandomValues(buffer);
+  } while (buffer[0] >= limit);
+  return buffer[0] % length;
+}
+
 export function generate(mode: GeneratorMode): string {
   if (mode === "custom") return "";
-  if (mode === "hex") return randomBytes(4).toString("hex");
-  return `${ADJECTIVES[randomInt(ADJECTIVES.length)]}-${NOUNS[randomInt(NOUNS.length)]}-${randomBytes(2).toString("hex")}`;
+  if (mode === "hex") return hex(4);
+  return `${ADJECTIVES[randomIndex(ADJECTIVES.length)]}-${NOUNS[randomIndex(NOUNS.length)]}-${hex(2)}`;
 }
 
 export function validateLocalPart(rawValue: string): ValidationResult {
